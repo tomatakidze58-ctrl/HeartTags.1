@@ -1,0 +1,60 @@
+name: Build HeartTags
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Restore project folders
+        shell: bash
+        run: |
+          move_file() {
+            if [ -f "$1" ]; then
+              mkdir -p "$2"
+              mv "$1" "$2/"
+            fi
+          }
+
+          move_file gradle-wrapper.jar gradle/wrapper
+          move_file gradle-wrapper.properties gradle/wrapper
+          move_file HeartTagsClient.java src/client/java/dev/hearttags
+          move_file HeartTagsConfig.java src/client/java/dev/hearttags/config
+          move_file ModMenuIntegration.java src/client/java/dev/hearttags/compat
+          move_file SettingsScreen.java src/client/java/dev/hearttags/ui
+
+          for file in HeartBillboard.java HeartLayout.java PixelHeart.java PlayerHearts.java; do
+            move_file "$file" src/client/java/dev/hearttags/render
+          done
+
+          move_file fabric.mod.json src/main/resources
+          move_file en_us.json src/client/resources/assets/hearttags/lang
+
+      - name: Build mod
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HeartTags-26.2
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+          if-no-files-found: error
